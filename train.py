@@ -355,30 +355,27 @@ class BLIP_ITM(nn.Module):
         text_input = self.tokenizer(caption, return_tensors="pt").to(device)
         return text_input
 
-def getAttMap(img, attMap, blur=True, overlap=True):  # 获取attention Map与原图重叠的CAM图像
+def getAttMap(img, attMap, blur=True, overlap=True):
     if isinstance(attMap, torch.Tensor):
-        attMap = attMap.cpu().numpy()  # 转换为 NumPy 数组
+        attMap = attMap.cpu().numpy()
     attMap -= attMap.min()
-    if attMap.max() > 0:  # 将 attMap 的值归一化到 [0, 1] 区间：归一化的目的是为了帮助后续映射注意力值到热力图的颜色上时颜色之间的差距较大更好区分
+    if attMap.max() > 0:
         attMap /= attMap.max()
 
-    # 将注意力图的尺寸调整为与原始图像 img 相同的大小。(在示例图当中是（480, 640)本来image.shape是(480,640,3)
     attMap = transform.resize(attMap, (img.shape[:2]), order=3, mode='constant')
     attMap_without_overlap = attMap
-    # print("???????????????",img.shape)
-    if blur:  # smooth一下
+
+    if blur:
         attMap = filters.gaussian_filter(attMap, 0.02 * max(img.shape[:2]))
         attMap -= attMap.min()
         attMap /= attMap.max()
     cmap = plt.get_cmap('jet')
     attMapV = cmap(attMap)
-    attMapV = np.delete(attMapV, 3, 2)  # 删除 Alpha 通道
+    attMapV = np.delete(attMapV, 3, 2)
     if overlap:
         attMap = 1 * (1 - attMap ** 0.7).reshape(attMap.shape + (1,)) * img + (attMap ** 0.7).reshape(
             attMap.shape + (1,)) * attMapV
-        # attMap = 1*(1-attMap**0.7).reshape(attMap.shape + (1,))*img + (attMap**1).reshape(attMap.shape+(1,)) * attMapV
-        # 0.7:这里的数字越大热力图越淡如果等于0那么只有热力图没用原图的叠加
-        # 1*(1-attMap**0.7).reshape(attMap.shape + (1,))：attMap**0.7由于attMap的范围在[0,1]所以小数次幂会让对应的数字更大
+
     return attMap, attMap_without_overlap
 
 
